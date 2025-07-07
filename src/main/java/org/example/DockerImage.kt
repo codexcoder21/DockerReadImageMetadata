@@ -6,6 +6,8 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
+import org.apache.commons.compress.compressors.gzip.GzipCompressorInputStream
+import org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream
 import java.io.File
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
@@ -34,7 +36,12 @@ class DockerImage(private val fileSystem: FileSystem, private val path: Path) {
         }
 
         fileSystem.source(path).buffer().inputStream().use { bufferedInputStream ->
-            TarArchiveInputStream(bufferedInputStream).use { tarInput ->
+            val input = if (path.name.endsWith(".gz")) {
+                GzipCompressorInputStream(bufferedInputStream)
+            } else {
+                bufferedInputStream
+            }
+            TarArchiveInputStream(input).use { tarInput ->
                 var entry = tarInput.nextEntry
                 while (entry != null) {
                     if (!entry.isDirectory) {
@@ -120,7 +127,12 @@ class DockerImage(private val fileSystem: FileSystem, private val path: Path) {
                 val tempPath = FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "${path.name}.tmp"
 
                 fileSystem.sink(tempPath).buffer().outputStream().use { bufferedOutputStream ->
-                    TarArchiveOutputStream(bufferedOutputStream).use { tarOutput ->
+                    val output = if (path.name.endsWith(".gz")) {
+                        GzipCompressorOutputStream(bufferedOutputStream)
+                    } else {
+                        bufferedOutputStream
+                    }
+                    TarArchiveOutputStream(output).use { tarOutput ->
                         for ((name, content) in fileContents) {
                             val entry = TarArchiveEntry(name)
                             entry.size = content.size.toLong()
