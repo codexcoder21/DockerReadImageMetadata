@@ -14,11 +14,13 @@ class DockerImageTest {
     @TempDir
     lateinit var tempDir: File
     private lateinit var testTarballFile: File
+    private lateinit var testTarGzFile: File
     private val fileSystem = FileSystem.SYSTEM
 
     @BeforeEach
     fun setUp() {
         testTarballFile = File(tempDir, "test-image.tar")
+        testTarGzFile = File(tempDir, "test-image.tar.gz")
 
         val manifestContent = """
             [
@@ -64,11 +66,46 @@ class DockerImageTest {
                 tarOutput.closeArchiveEntry()
             }
         }
+
+        val testTarGzPath = testTarGzFile.toOkioPath()
+        fileSystem.sink(testTarGzPath).buffer().outputStream().use { outputStream ->
+            org.apache.commons.compress.compressors.gzip.GzipCompressorOutputStream(outputStream).use { gzipOut ->
+                org.apache.commons.compress.archivers.tar.TarArchiveOutputStream(gzipOut).use { tarOutput ->
+                    var entry = org.apache.commons.compress.archivers.tar.TarArchiveEntry("manifest.json")
+                    var bytes = manifestContent.toByteArray(Charsets.UTF_8)
+                    entry.size = bytes.size.toLong()
+                    tarOutput.putArchiveEntry(entry)
+                    tarOutput.write(bytes)
+                    tarOutput.closeArchiveEntry()
+
+                    entry = org.apache.commons.compress.archivers.tar.TarArchiveEntry("config.json")
+                    bytes = configContent.toByteArray(Charsets.UTF_8)
+                    entry.size = bytes.size.toLong()
+                    tarOutput.putArchiveEntry(entry)
+                    tarOutput.write(bytes)
+                    tarOutput.closeArchiveEntry()
+
+                    entry = org.apache.commons.compress.archivers.tar.TarArchiveEntry("layer1.tar.gz")
+                    bytes = layerContent.toByteArray(Charsets.UTF_8)
+                    entry.size = bytes.size.toLong()
+                    tarOutput.putArchiveEntry(entry)
+                    tarOutput.write(bytes)
+                    tarOutput.closeArchiveEntry()
+                }
+            }
+        }
     }
 
     @Test
     fun `test DockerImage constructor with FileSystem and Path`() {
         val image = DockerImage(fileSystem, testTarballFile.toOkioPath())
+        assertNotNull(image.getManifest(), "Manifest should not be null")
+        assertNotNull(image.getConfig(), "Config should not be null")
+    }
+
+    @Test
+    fun `test DockerImage constructor with FileSystem and Path for tar gz`() {
+        val image = DockerImage(fileSystem, testTarGzFile.toOkioPath())
         assertNotNull(image.getManifest(), "Manifest should not be null")
         assertNotNull(image.getConfig(), "Config should not be null")
     }
@@ -81,8 +118,25 @@ class DockerImageTest {
     }
 
     @Test
+    fun `test top-level DockerImage function with java File for tar gz`() {
+        val image = DockerImage(testTarGzFile)
+        assertNotNull(image.getManifest(), "Manifest should not be null")
+        assertNotNull(image.getConfig(), "Config should not be null")
+    }
+
+    @Test
     fun `getManifest returns correct manifest content`() {
         val image = DockerImage(testTarballFile)
+        val manifest = image.getManifest()
+        assertNotNull(manifest)
+        assertTrue(manifest!!.isArray)
+        assertEquals(1, manifest.size())
+        assertEquals("config.json", manifest[0]?.get("Config")?.asText())
+    }
+
+    @Test
+    fun `getManifest returns correct manifest content for tar gz`() {
+        val image = DockerImage(testTarGzFile)
         val manifest = image.getManifest()
         assertNotNull(manifest)
         assertTrue(manifest!!.isArray)
@@ -100,6 +154,15 @@ class DockerImageTest {
     }
 
     @Test
+    fun `getConfig returns correct config content for tar gz`() {
+        val image = DockerImage(testTarGzFile)
+        val config = image.getConfig()
+        assertNotNull(config)
+        assertEquals("amd64", config?.get("architecture")?.asText())
+        assertEquals("linux", config?.get("os")?.asText())
+    }
+
+    @Test
     fun `getTags returns correct tags`() {
         val image = DockerImage(testTarballFile)
         val tags = image.getTags()
@@ -107,8 +170,22 @@ class DockerImageTest {
     }
 
     @Test
+    fun `getTags returns correct tags for tar gz`() {
+        val image = DockerImage(testTarGzFile)
+        val tags = image.getTags()
+        assertEquals(listOf("test-image:latest", "test-image:1.0"), tags)
+    }
+
+    @Test
     fun `getLayers returns correct layers`() {
         val image = DockerImage(testTarballFile)
+        val layers = image.getLayers()
+        assertEquals(listOf("layer1.tar.gz"), layers)
+    }
+
+    @Test
+    fun `getLayers returns correct layers for tar gz`() {
+        val image = DockerImage(testTarGzFile)
         val layers = image.getLayers()
         assertEquals(listOf("layer1.tar.gz"), layers)
     }
@@ -132,9 +209,38 @@ class DockerImageTest {
     }
 
     @Test
+    fun `setTags updates tags in the tar gz`() {
+        val image = DockerImage(testTarGzFile)
+        val newTags = listOf("new-image:v1", "new-image:latest")
+        image.setTags(newTags)
+
+        val updatedImage = DockerImage(testTarGzFile)
+        assertEquals(newTags, updatedImage.getTags())
+
+        val manifest = updatedImage.getManifest()
+        assertNotNull(manifest)
+        val repoTagsNode = manifest!![0]?.get("RepoTags")
+        assertNotNull(repoTagsNode)
+        assertTrue(repoTagsNode!!.isArray)
+        val tagsList = repoTagsNode.map { it.asText() }
+        assertEquals(newTags, tagsList)
+    }
+
+    @Test
     fun `constructor throws IllegalArgumentException for non-existent tarball`() {
         val nonExistentFile = File(tempDir, "nonexistent.tar")
         // Ensure the file does not exist before testing
+        if (nonExistentFile.exists()) {
+            nonExistentFile.delete()
+        }
+        assertThrows(IllegalArgumentException::class.java) {
+            DockerImage(nonExistentFile)
+        }
+    }
+
+    @Test
+    fun `constructor throws IllegalArgumentException for non-existent tar gz`() {
+        val nonExistentFile = File(tempDir, "nonexistent.tar.gz")
         if (nonExistentFile.exists()) {
             nonExistentFile.delete()
         }
