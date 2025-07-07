@@ -1,5 +1,6 @@
 package org.example
 
+import org.example.DockerImage
 import java.io.File
 
 fun main(args: Array<String>) {
@@ -17,7 +18,7 @@ fun main(args: Array<String>) {
     }
 
     try {
-        val editor = DockerImageEditor(tarballPath)
+        val editor = DockerImage(tarballPath)
 
         println("\n--- Docker Image Configuration ---")
         editor.getConfig()?.let { config ->

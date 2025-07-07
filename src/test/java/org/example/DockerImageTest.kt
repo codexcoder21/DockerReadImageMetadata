@@ -12,7 +12,7 @@ import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
 import java.io.ByteArrayInputStream
 
-class DockerImageEditorTest {
+class DockerImageTest {
 
     private val TEST_TARBALL_PATH = "./test-image.tar"
     private val TEST_TARBALL_PATH_NEW = "./test-image-new.tar"
@@ -82,7 +82,7 @@ class DockerImageEditorTest {
 
     @Test
     fun testGetManifest() {
-        val editor = DockerImageEditor(TEST_TARBALL_PATH)
+        val editor = DockerImage(TEST_TARBALL_PATH)
         val manifest = editor.getManifest()
         assertNotNull(manifest)
         assertTrue(manifest!!.isArray)
@@ -92,7 +92,7 @@ class DockerImageEditorTest {
 
     @Test
     fun testGetConfig() {
-        val editor = DockerImageEditor(TEST_TARBALL_PATH)
+        val editor = DockerImage(TEST_TARBALL_PATH)
         val config = editor.getConfig()
         assertNotNull(config)
         assertEquals("amd64", config!!["architecture"].asText())
@@ -101,7 +101,7 @@ class DockerImageEditorTest {
 
     @Test
     fun testGetTags() {
-        val editor = DockerImageEditor(TEST_TARBALL_PATH)
+        val editor = DockerImage(TEST_TARBALL_PATH)
         val tags = editor.getTags()
         assertEquals(2, tags.size)
         assertTrue(tags.contains("test/image:latest"))
@@ -110,7 +110,7 @@ class DockerImageEditorTest {
 
     @Test
     fun testGetLayers() {
-        val editor = DockerImageEditor(TEST_TARBALL_PATH)
+        val editor = DockerImage(TEST_TARBALL_PATH)
         val layers = editor.getLayers()
         assertEquals(2, layers.size)
         assertTrue(layers.contains("layer1.tar"))
@@ -119,12 +119,12 @@ class DockerImageEditorTest {
 
     @Test
     fun testSetTags() {
-        val editor = DockerImageEditor(TEST_TARBALL_PATH)
+        val editor = DockerImage(TEST_TARBALL_PATH)
         val newTags = listOf("new/image:2.0", "new/image:beta")
         editor.setTags(newTags)
 
         // Re-read the tarball to verify changes
-        val updatedEditor = DockerImageEditor(TEST_TARBALL_PATH)
+        val updatedEditor = DockerImage(TEST_TARBALL_PATH)
         val updatedTags = updatedEditor.getTags()
         assertEquals(2, updatedTags.size)
         assertTrue(updatedTags.contains("new/image:2.0"))
@@ -157,7 +157,7 @@ class DockerImageEditorTest {
 
         createDummyTarball(TEST_TARBALL_PATH_NEW, manifestContent, configContent, layerContent)
 
-        val editor = DockerImageEditor(TEST_TARBALL_PATH_NEW)
+        val editor = DockerImage(TEST_TARBALL_PATH_NEW)
         val tags = editor.getTags()
 
         assertEquals(1, tags.size)

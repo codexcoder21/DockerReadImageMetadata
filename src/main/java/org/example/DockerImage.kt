@@ -12,7 +12,7 @@ import java.io.File
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
 
-class DockerImageEditor(private val tarballPath: String) {
+class DockerImage(private val tarballPath: String) {
     val objectMapper = ObjectMapper().registerModule(KotlinModule.Builder().build())
     private var manifestNode: JsonNode? = null
     private var configNode: JsonNode? = null
