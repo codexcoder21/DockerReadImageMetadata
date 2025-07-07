@@ -1,4 +1,4 @@
-package org.example
+package tools.kotlin.dockerutils.imageio
 
 import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper

@@ -1,6 +1,6 @@
-package org.example
+package tools.kotlin.dockerutils.imageio
 
-import org.example.DockerImage
+import tools.kotlin.dockerutils.imageio.DockerImage
 import java.io.File
 
 fun main(args: Array<String>) {
