@@ -4,7 +4,7 @@ plugins {
     id("org.jetbrains.kotlin.jvm") version "2.2.0"
 }
 
-group = "org.example"
+group = "tools.kotlin.dockerutils.imageio"
 version = "1.0-SNAPSHOT"
 
 repositories {
@@ -34,7 +34,7 @@ kotlin {
 }
 
 application {
-    mainClass.set("org.example.MainKt")
+    mainClass.set("tools.kotlin.dockerutils.imageio.MainKt")
 }
 
 tasks.test {

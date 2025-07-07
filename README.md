@@ -1,6 +1,6 @@
 # Docker Image Metadata Reader
 
-This Kotlin application reads a Docker image tarball and extracts its metadata, printing it to standard output.
+This Kotlin application reads a Docker image tarball and extracts its metadata, printing it to standard output. The library is provided under the package `tools.kotlin.dockerutils.imageio`.
 
 ## How to Build
 
@@ -23,6 +23,22 @@ To run the application, you need to provide the absolute path to the Docker imag
 Replace `/path/to/your/docker-image.tar` with the actual absolute path to your Docker image tarball (e.g., `/root/hello-world-image.tar`).
 
 The application will then parse the tarball and print the extracted Docker image metadata to your console.
+
+## Getting Started
+
+This snippet demonstrates reading an image stored as a local `tar.gz` archive,
+printing the existing tags and then setting a new tag:
+
+```kotlin
+import java.io.File
+import tools.kotlin.dockerutils.imageio.DockerImage
+
+fun main() {
+    val image = DockerImage(File("/path/to/image.tar.gz"))
+    println("Current tags: ${'$'}{image.getTags()}")
+    image.setTags(listOf("my-image:latest"))
+}
+```
 
 TODO:
 * Modify so DockerImage default constructor takes in an okio Filesystem and Path.  Add a            │

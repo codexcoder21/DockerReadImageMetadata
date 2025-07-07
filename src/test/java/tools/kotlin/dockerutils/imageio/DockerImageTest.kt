@@ -1,4 +1,4 @@
-package org.example
+package tools.kotlin.dockerutils.imageio
 
 import okio.FileSystem
 import okio.Path.Companion.toOkioPath
