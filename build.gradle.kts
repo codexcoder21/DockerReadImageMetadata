@@ -20,6 +20,7 @@ dependencies {
     implementation("com.fasterxml.jackson.core:jackson-databind:2.17.0")
     implementation("com.fasterxml.jackson.module:jackson-module-kotlin:2.17.0")
     implementation("org.apache.commons:commons-compress:1.26.1")
+    implementation("com.squareup.okio:okio-jvm:3.9.0") // Downgraded Okio version
 }
 
 java {

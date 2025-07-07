@@ -6,13 +6,19 @@ import com.fasterxml.jackson.module.kotlin.KotlinModule
 import org.apache.commons.compress.archivers.tar.TarArchiveInputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveOutputStream
 import org.apache.commons.compress.archivers.tar.TarArchiveEntry
-import java.io.FileInputStream
-import java.io.FileOutputStream
 import java.io.File
 import java.io.ByteArrayInputStream
 import java.io.ByteArrayOutputStream
+import okio.FileSystem
+import okio.Path
+import okio.buffer
+import okio.Path.Companion.toOkioPath
 
-class DockerImage(private val tarballPath: String) {
+fun DockerImage(tarballFile: java.io.File): DockerImage {
+    return DockerImage(FileSystem.SYSTEM, tarballFile.toOkioPath())
+}
+
+class DockerImage(private val fileSystem: FileSystem, private val path: Path) {
     val objectMapper = ObjectMapper().registerModule(KotlinModule.Builder().build())
     private var manifestNode: JsonNode? = null
     private var configNode: JsonNode? = null
@@ -23,15 +29,15 @@ class DockerImage(private val tarballPath: String) {
     }
 
     private fun readMetadata() {
-        val tarFile = File(tarballPath)
-        if (!tarFile.exists()) {
-            throw IllegalArgumentException("Tarball not found at $tarballPath")
+        if (!fileSystem.exists(path)) {
+            throw IllegalArgumentException("Tarball not found at $path")
         }
 
-        TarArchiveInputStream(FileInputStream(tarFile)).use { tarInput ->
-            var entry = tarInput.nextEntry
-            while (entry != null) {
-                if (!entry.isDirectory) {
+        fileSystem.source(path).buffer().inputStream().use { bufferedInputStream ->
+            TarArchiveInputStream(bufferedInputStream).use { tarInput ->
+                var entry = tarInput.nextEntry
+                while (entry != null) {
+                    if (!entry.isDirectory) {
                     val content = tarInput.readBytes()
                     fileContents[entry.name] = content
                     if (entry.name == "manifest.json") {
@@ -40,7 +46,8 @@ class DockerImage(private val tarballPath: String) {
                 }
                 entry = tarInput.nextEntry
             }
-        }
+          } // Closing brace for TarArchiveInputStream.use
+        } // Closing brace for fileSystem.source.buffer.inputStream.use
 
         manifestNode?.let {
             manifest ->
@@ -109,21 +116,28 @@ class DockerImage(private val tarballPath: String) {
                 val updatedManifestContent = objectMapper.writerWithDefaultPrettyPrinter().writeValueAsBytes(manifestNode)
                 fileContents["manifest.json"] = updatedManifestContent
 
-                // Create a temporary file for the new tarball
-                val tempTarballFile = File.createTempFile("docker-image-temp", ".tar")
-                tempTarballFile.deleteOnExit()
+                // Create a temporary path for the new tarball
+                val tempPath = FileSystem.SYSTEM_TEMPORARY_DIRECTORY / "${path.name}.tmp"
 
-                TarArchiveOutputStream(FileOutputStream(tempTarballFile)).use { tarOutput ->
-                    for ((name, content) in fileContents) {
-                        val entry = TarArchiveEntry(name)
-                        entry.size = content.size.toLong()
-                        tarOutput.putArchiveEntry(entry)
-                        tarOutput.write(content)
-                        tarOutput.closeArchiveEntry()
+                fileSystem.sink(tempPath).buffer().outputStream().use { bufferedOutputStream ->
+                    TarArchiveOutputStream(bufferedOutputStream).use { tarOutput ->
+                        for ((name, content) in fileContents) {
+                            val entry = TarArchiveEntry(name)
+                            entry.size = content.size.toLong()
+                            tarOutput.putArchiveEntry(entry)
+                            tarOutput.write(content)
+                            tarOutput.closeArchiveEntry()
+                        }
                     }
                 }
                 // Replace the original tarball with the new one
-                tempTarballFile.copyTo(File(tarballPath), overwrite = true)
+                try {
+                    fileSystem.atomicMove(tempPath, path)
+                } catch (e: Exception) {
+                    // Fallback if atomicMove is not supported or fails
+                    fileSystem.copy(tempPath, path)
+                    fileSystem.delete(tempPath)
+                }
             } else {
                 throw IllegalStateException("Invalid manifest.json format.")
             }
