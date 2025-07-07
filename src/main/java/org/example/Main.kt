@@ -18,7 +18,8 @@ fun main(args: Array<String>) {
     }
 
     try {
-        val editor = DockerImage(tarballPath)
+        // Updated to use the new top-level DockerImage function
+        val editor = DockerImage(tarFile)
 
         println("\n--- Docker Image Configuration ---")
         editor.getConfig()?.let { config ->
