@@ -1,6 +1,6 @@
 # Docker Image Metadata Reader
 
-This Kotlin application reads a Docker image tarball and extracts its metadata, printing it to standard output. The library is provided under the package `tools.kotlin.dockerutils.imageio`.
+This Kotlin application library reads a Docker image tarball and extracts its metadata.  The library can be used programmatically, or the main program will print the metadata to standard output.
 
 ## How to Build
 
