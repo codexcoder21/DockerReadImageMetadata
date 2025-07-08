@@ -40,10 +40,3 @@ fun main() {
 }
 ```
 
-TODO:
-* Modify so DockerImage default constructor takes in an okio Filesystem and Path.  Add a            │
-│   top-level function named DockerImage which takes in a java file and then calls the default        │
-│   constructor and returns the DockerImage.  You can get okio version                                │
-│   `com.squareup.okio:okio-jvm:3.15.0`.
-
-
